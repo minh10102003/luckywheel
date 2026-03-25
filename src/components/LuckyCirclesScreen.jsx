@@ -1,4 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  LUCKY_CIRCLES_EXCLUDED_PHONES,
+  LUCKY_CIRCLES_FAVORED_PHONES,
+  LUCKY_CIRCLES_TOTAL_FAVORED,
+  LUCKY_CIRCLES_TOTAL_NON_FAVORED,
+  normalizePhoneDigits,
+} from '../data/phones'
 
 function last3(phone) {
   return String(phone ?? '').slice(-3)
@@ -8,18 +15,60 @@ function randomInt(maxExclusive) {
   return Math.floor(Math.random() * maxExclusive)
 }
 
+function winnerIsFavoredEntry(w, phoneBook) {
+  const ph =
+    w.phone ??
+    phoneBook.find((p) => p.name === w.name && last3(p.phone) === w.last3)?.phone
+  return Boolean(ph && LUCKY_CIRCLES_FAVORED_PHONES.has(normalizePhoneDigits(ph)))
+}
+
+/**
+ * Chọn người tiếp theo sao cho sau 3 lượt có đúng LUCKY_CIRCLES_TOTAL_FAVORED người nhóm 4
+ * và LUCKY_CIRCLES_TOTAL_NON_FAVORED người ngoài nhóm.
+ */
+function pickLuckyCircleWinnerConstrained(eligible, winners, phoneBook) {
+  if (eligible.length === 0) return null
+
+  const favSoFar = winners.filter((w) => winnerIsFavoredEntry(w, phoneBook)).length
+  const nonSoFar = winners.length - favSoFar
+  const roundsLeft = 3 - winners.length
+  const needFav = LUCKY_CIRCLES_TOTAL_FAVORED - favSoFar
+  const needNon = LUCKY_CIRCLES_TOTAL_NON_FAVORED - nonSoFar
+
+  const favored = eligible.filter((p) => LUCKY_CIRCLES_FAVORED_PHONES.has(normalizePhoneDigits(p.phone)))
+  const nonFavored = eligible.filter((p) => !LUCKY_CIRCLES_FAVORED_PHONES.has(normalizePhoneDigits(p.phone)))
+
+  if (needFav === roundsLeft) {
+    return favored.length ? favored[randomInt(favored.length)] : null
+  }
+  if (needNon === roundsLeft) {
+    return nonFavored.length ? nonFavored[randomInt(nonFavored.length)] : null
+  }
+  if (needFav > 0 && favored.length === 0) return null
+  if (needNon > 0 && nonFavored.length === 0) return null
+  if (needFav === 0) return nonFavored[randomInt(nonFavored.length)]
+  if (needNon === 0) return favored[randomInt(favored.length)]
+  return Math.random() < 0.5
+    ? favored[randomInt(favored.length)]
+    : nonFavored[randomInt(nonFavored.length)]
+}
+
 export function LuckyCirclesScreen({ phoneBook, onDone, onContinue }) {
   const [phase, setPhase] = useState('idle') // idle | rolling
   const [digits, setDigits] = useState([0, 0, 0])
   const [locked, setLocked] = useState([false, false, false])
-  const [winners, setWinners] = useState([]) // [{name,last3}]
+  const [winners, setWinners] = useState([]) // [{name,last3,phone}]
   const timersRef = useRef([])
   const lockedRef = useRef([false, false, false])
   const audioRef = useRef(null)
 
   const eligiblePeople = useMemo(() => {
     const pickedNames = new Set(winners.map((w) => w.name))
-    return phoneBook.filter((p) => !pickedNames.has(p.name))
+    return phoneBook.filter((p) => {
+      if (pickedNames.has(p.name)) return false
+      if (LUCKY_CIRCLES_EXCLUDED_PHONES.has(normalizePhoneDigits(p.phone))) return false
+      return true
+    })
   }, [phoneBook, winners])
 
   useEffect(() => {
@@ -46,6 +95,9 @@ export function LuckyCirclesScreen({ phoneBook, onDone, onContinue }) {
     if (winners.length >= 3) return
     if (eligiblePeople.length === 0) return
 
+    const chosen = pickLuckyCircleWinnerConstrained(eligiblePeople, winners, phoneBook)
+    if (!chosen) return
+
     setPhase('rolling')
     setLocked([false, false, false])
     lockedRef.current = [false, false, false]
@@ -62,7 +114,6 @@ export function LuckyCirclesScreen({ phoneBook, onDone, onContinue }) {
       // Autoplay might still be blocked in some browsers; ignore.
     })
 
-    const chosen = eligiblePeople[randomInt(eligiblePeople.length)]
     const code = last3(chosen.phone)
     const target = code.split('').map((d) => Number.parseInt(d, 10))
 
@@ -92,7 +143,7 @@ export function LuckyCirclesScreen({ phoneBook, onDone, onContinue }) {
       setLocked((prev) => [prev[0], prev[1], true])
       lockedRef.current = [lockedRef.current[0], lockedRef.current[1], true]
       window.clearInterval(intervalId)
-      setWinners((prevW) => [...prevW, { name: chosen.name, last3: code }])
+      setWinners((prevW) => [...prevW, { name: chosen.name, last3: code, phone: chosen.phone }])
       setPhase('idle')
 
       if (audioRef.current) {

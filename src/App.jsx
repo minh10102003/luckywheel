@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import confetti from 'canvas-confetti'
 import { PHONE_BOOK } from './data/phones'
 import { PRIZE_LIST } from './data/prizes'
@@ -50,6 +50,8 @@ export default function App() {
   const [isSpinning, setIsSpinning] = useState(false)
   const [rotation, setRotation] = useState(0)
   const [prizeResult, setPrizeResult] = useState(null)
+  /** Kết quả theo từng người (0..2), để bấm tên xem lại giải */
+  const [spinResultsByIndex, setSpinResultsByIndex] = useState([null, null, null])
   const timeoutRef = useRef(null)
   const wheelElRef = useRef(null)
   const [pointerAngleDeg, setPointerAngleDeg] = useState(0)
@@ -75,6 +77,19 @@ export default function App() {
     }
   }, [])
 
+  const handleShuffleDone = useCallback((picks) => {
+    setLuckyPicks(picks ?? [])
+    setSpinsCompleted(0)
+    setSpinResultsByIndex([null, null, null])
+    setPrizeResult(null)
+    setIsSpinning(false)
+    setRotation(0)
+  }, [])
+
+  const handleContinueToWheel = useCallback(() => {
+    setStage('wheel')
+  }, [])
+
   /** Về màn chọn 3 người may mắn, làm lại luồng từ đầu. */
   const returnToShuffle = () => {
     if (isSpinning) return
@@ -97,6 +112,7 @@ export default function App() {
     setStage('shuffle')
     setLuckyPicks([])
     setSpinsCompleted(0)
+    setSpinResultsByIndex([null, null, null])
     setPrizeResult(null)
     setIsSpinning(false)
     setRotation(0)
@@ -171,12 +187,18 @@ export default function App() {
       victoryAudioRef.current.play().catch(() => {
         // Ignore autoplay restrictions if browser blocks.
       })
-      setPrizeResult({
+      const resultPayload = {
         spinRound: turnIndex + 1,
         luckyNumber: picked?.last3,
         luckyOwner: picked?.name,
         prize: chosen,
+      }
+      setSpinResultsByIndex((prev) => {
+        const next = [...prev]
+        next[turnIndex] = resultPayload
+        return next
       })
+      setPrizeResult(resultPayload)
       const isConsolation = targetIdx === 0 || targetIdx === 3
       confetti({
         particleCount: isConsolation ? 55 : 140,
@@ -266,14 +288,8 @@ export default function App() {
         {stage === 'shuffle' ? (
           <LuckyCirclesScreen
             phoneBook={phoneBook}
-            onDone={(picks) => {
-              setLuckyPicks(picks ?? [])
-              setSpinsCompleted(0)
-              setPrizeResult(null)
-              setIsSpinning(false)
-              setRotation(0)
-            }}
-            onContinue={() => setStage('wheel')}
+            onDone={handleShuffleDone}
+            onContinue={handleContinueToWheel}
           />
         ) : (
           <div className="w-full rounded-3xl border border-white/15 bg-slate-950/95 p-6 shadow-2xl shadow-black/60 ring-1 ring-white/10 backdrop-blur-md md:p-10">
@@ -290,9 +306,31 @@ export default function App() {
                 <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                   {luckyPicks.map((p, idx) => {
                     const done = idx < spinsCompleted
+                    const stored = spinResultsByIndex[idx]
+                    const key = `${idx}-${p?.name ?? 'pick'}-${p?.last3 ?? ''}`
+                    if (done && stored) {
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          disabled={isSpinning}
+                          title="Xem lại giải thưởng"
+                          onClick={() => setPrizeResult({ ...stored, isReplay: true })}
+                          className={[
+                            'rounded-full border px-3 py-1 text-left text-xs font-extrabold tracking-wider transition',
+                            'border-white/15 bg-slate-900/60 text-white/80 line-through decoration-white/30',
+                            'hover:border-indigo-400/40 hover:bg-slate-800/90 hover:text-white hover:decoration-transparent',
+                            'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60',
+                            isSpinning ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
+                          ].join(' ')}
+                        >
+                          {p?.last3} — {p?.name}
+                        </button>
+                      )
+                    }
                     return (
                       <div
-                        key={`${idx}-${p?.name ?? 'pick'}-${p?.last3 ?? ''}`}
+                        key={key}
                         className={[
                           'rounded-full border px-3 py-1 text-xs font-extrabold tracking-wider',
                           done

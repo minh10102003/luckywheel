@@ -1,5 +1,17 @@
 import { useEffect } from 'react'
 
+const ICON_WIN = '/favpng_a1ee4cd51df3a9374249f518432b3e67.png'
+/** File trong public có dấu gạch em — trong tên; encode để URL hợp lệ. */
+const ICON_CONSOLATION =
+  '/' + encodeURIComponent('—Pngtree—cool smiley emoji sunglasses thumbs_22595487.png')
+
+function isConsolationPrize(prize) {
+  const id = prize?.prize?.id
+  if (id === 1 || id === 4) return true
+  const name = prize?.prize?.name ?? prize?.name
+  return name === 'Chúc bạn may mắn lần sau'
+}
+
 export function ResultModal({ open, prize, onClose }) {
   useEffect(() => {
     if (!open) return
@@ -10,10 +22,14 @@ export function ResultModal({ open, prize, onClose }) {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [open, onClose])
 
+  const headerIconSrc =
+    prize && isConsolationPrize(prize) ? ICON_CONSOLATION : ICON_WIN
+
   if (!open) return null
 
   const spinRound = prize?.spinRound
-  const title = prize?.tier ?? 'Chúc mừng!'
+  const isReplay = Boolean(prize?.isReplay)
+  const title = prize?.tier ?? (isReplay ? 'Giải đã nhận' : 'Chúc mừng!')
   const luckyNumber = prize?.luckyNumber
   const luckyOwner = prize?.luckyOwner
   const prizeName = prize?.prize?.name ?? prize?.name
@@ -33,8 +49,13 @@ export function ResultModal({ open, prize, onClose }) {
         <div className="pointer-events-none absolute inset-0 opacity-35 [background:radial-gradient(600px_circle_at_30%_15%,rgba(99,102,241,0.35),transparent_55%),radial-gradient(500px_circle_at_70%_20%,rgba(236,72,153,0.28),transparent_55%)]" />
 
         <div className="relative">
-          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-white/10 ring-1 ring-white/15">
-            <div className="h-7 w-7 rounded-full bg-white/80 shadow-[0_0_0_10px_rgba(255,255,255,0.08)]" />
+          <div className="mx-auto flex h-[4.5rem] w-[4.5rem] items-center justify-center overflow-hidden rounded-2xl bg-white/10 ring-1 ring-white/15">
+            <img
+              src={headerIconSrc}
+              alt=""
+              className="h-full w-full object-contain p-1.5"
+              decoding="async"
+            />
           </div>
 
           <h3 className="mt-5 text-center text-2xl font-black tracking-tight text-white">
@@ -46,7 +67,7 @@ export function ResultModal({ open, prize, onClose }) {
             </p>
           ) : null}
           <p className="mt-2 text-center text-sm text-white/80">
-            Bạn đã trúng:
+            {isReplay ? 'Giải thưởng:' : 'Bạn đã trúng:'}
           </p>
 
           <div className="mt-4 rounded-2xl border border-white/12 bg-slate-900/90 p-4 text-center ring-1 ring-black/25">
