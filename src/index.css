@@ -1,0 +1,151 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-slate-950 font-sans text-slate-100 antialiased;
+  }
+}
+
+@layer utilities {
+  .text-stroke {
+    -webkit-text-stroke: 1px rgba(0, 0, 0, 0.45);
+    text-stroke: 1px rgba(0, 0, 0, 0.45);
+  }
+
+  @keyframes shuffleWiggle {
+    0% {
+      transform: translateY(0) rotate(0deg);
+    }
+    25% {
+      transform: translateY(-3px) rotate(-1.2deg);
+    }
+    50% {
+      transform: translateY(0) rotate(1.2deg);
+    }
+    75% {
+      transform: translateY(2px) rotate(-0.8deg);
+    }
+    100% {
+      transform: translateY(0) rotate(0deg);
+    }
+  }
+
+  .shuffle-wiggle {
+    animation: shuffleWiggle 260ms ease-in-out infinite;
+  }
+
+  @keyframes flipIn {
+    0% {
+      transform: perspective(900px) rotateX(70deg) scale(0.96);
+      opacity: 0;
+    }
+    100% {
+      transform: perspective(900px) rotateX(0deg) scale(1);
+      opacity: 1;
+    }
+  }
+
+  .flip-in {
+    animation: flipIn 420ms cubic-bezier(0.2, 0.9, 0.2, 1);
+  }
+
+  /* pointer click animation replaced by spring physics in JS */
+
+  @keyframes leverPulled {
+    0% {
+      transform: rotate(0deg);
+    }
+    35% {
+      transform: rotate(22deg);
+    }
+    70% {
+      transform: rotate(14deg);
+    }
+    100% {
+      transform: rotate(18deg);
+    }
+  }
+
+  .lever-pulled {
+    animation: leverPulled 260ms ease-out infinite alternate;
+  }
+
+  @keyframes leverPullDown3d {
+    0% {
+      transform: perspective(900px) rotateX(10deg) rotateZ(0deg) translateY(0);
+    }
+    45% {
+      transform: perspective(900px) rotateX(70deg) rotateZ(-6deg) translateY(22px);
+    }
+    100% {
+      transform: perspective(900px) rotateX(55deg) rotateZ(-4deg) translateY(16px);
+    }
+  }
+
+  .lever-3d-pulled {
+    transform-origin: 50% 0%;
+    animation: leverPullDown3d 260ms ease-out infinite alternate;
+  }
+
+  @keyframes reelSpin {
+    0% {
+      transform: translateY(0);
+      filter: blur(0px);
+    }
+    50% {
+      transform: translateY(-2px);
+      filter: blur(0.35px);
+    }
+    100% {
+      transform: translateY(0);
+      filter: blur(0px);
+    }
+  }
+
+  .reel-spin {
+    animation: reelSpin 110ms ease-in-out infinite;
+  }
+
+  /* reel glow removed: use real slot animation */
+}
+
+/* slot-machine-gen layout overrides (keep scoped) */
+.slot-wrap {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  overflow: hidden;
+}
+
+.slot-machine.slot-machine--compact {
+  position: relative;
+  width: 420px;
+  height: 320px;
+  transform: scale(0.9);
+  transform-origin: top center;
+}
+
+@media (min-width: 768px) {
+  .slot-machine.slot-machine--compact {
+    width: 520px;
+    height: 360px;
+    transform: scale(1);
+  }
+}
+
+/* ensure it doesn't absolutely escape our container */
+.slot-machine.slot-machine--compact .display,
+.slot-machine.slot-machine--compact .slots {
+  position: absolute;
+  inset: 0;
+}
